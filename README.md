@@ -1,8 +1,7 @@
-# C(ontinued)-MaNGOS -- README - With Bots
+# ::Welcome to The DARK_iCE Project::
 [![Build Status](https://travis-ci.org/cmangos/mangos-wotlk.svg?branch=master)](https://travis-ci.org/cmangos/mangos-wotlk) [![Windows Build status](https://ci.appveyor.com/api/projects/status/github/cmangos/mangos-wotlk?branch=master&svg=true)](https://ci.appveyor.com/project/cmangos/mangos-wotlk/branch/master)
 
 ==========================================================================================================
-::Welcome to The DARK_iCE Project::
 
 ::DARK_iCE Core::
 https://github.com/erazare/Dark-Ice-WOTLK
