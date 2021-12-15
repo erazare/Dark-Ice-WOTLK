@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 MaNGOS <http://getmangos.com/>
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,23 +20,24 @@
 #define MANGOS_SYSTEMCONFIG_H
 
 #ifndef _PACKAGENAME
-#define _PACKAGENAME "MaNGOS"
+#define _PACKAGENAME "CMaNGOS"
 #endif
 
+#include "revision.h"
 #include "Platform/Define.h"
 
-#ifndef _VERSION
-#if PLATFORM == PLATFORM_WINDOWS
-# define _VERSION(REVD,REVT,REVN,REVH) "0.16.0-DEV" " (" REVD " " REVT " Revision " REVN " - " REVH ")"
-#else
-# define _VERSION(REVD,REVT,REVN,REVH) "@VERSION@" " (" REVD " " REVT " Revision " REVN " - " REVH ")"
+#ifndef VERSION
+#error "VERSION undeclared"
 #endif
+
+#ifndef _VERSION
+# define _VERSION(REVD,REVH) VERSION " (" REVD " - " REVH ")"
 #endif
 
 // Format is YYYYMMDDRR where RR is the change in the conf file
 // for that day.
 #ifndef _MANGOSDCONFVERSION
-# define _MANGOSDCONFVERSION 2010062001
+# define _MANGOSDCONFVERSION 2019020601
 #endif
 #ifndef _REALMDCONFVERSION
 # define _REALMDCONFVERSION 2010062001
@@ -71,30 +72,31 @@
 # endif
 # define _MANGOSD_CONFIG  SYSCONFDIR"mangosd.conf"
 # define _REALMD_CONFIG   SYSCONFDIR"realmd.conf"
+# define _AUCTIONHOUSEBOT_CONFIG   SYSCONFDIR"ahbot.conf"
 #else
 # if defined  (__FreeBSD__)
-#  define _ENDIAN_PLATFORM "FreeBSD_"ARCHITECTURE" (" _ENDIAN_STRING ")"
+#  define _ENDIAN_PLATFORM "FreeBSD_" ARCHITECTURE " (" _ENDIAN_STRING ")"
 # elif defined(__NetBSD__)
-#  define _ENDIAN_PLATFORM "NetBSD_"ARCHITECTURE" (" _ENDIAN_STRING ")"
+#  define _ENDIAN_PLATFORM "NetBSD_" ARCHITECTURE " (" _ENDIAN_STRING ")"
 # elif defined(__OpenBSD__)
-#  define _ENDIAN_PLATFORM "OpenBSD_"ARCHITECTURE" (" _ENDIAN_STRING ")"
+#  define _ENDIAN_PLATFORM "OpenBSD_" ARCHITECTURE " (" _ENDIAN_STRING ")"
 # elif defined(__DragonFly__)
-#  define _ENDIAN_PLATFORM "DragonFlyBSD_"ARCHITECTURE" (" _ENDIAN_STRING ")"
+#  define _ENDIAN_PLATFORM "DragonFlyBSD_" ARCHITECTURE " (" _ENDIAN_STRING ")"
 # elif defined(__APPLE__)
-#  define _ENDIAN_PLATFORM "MacOSX_"ARCHITECTURE" (" _ENDIAN_STRING ")"
+#  define _ENDIAN_PLATFORM "MacOSX_" ARCHITECTURE " (" _ENDIAN_STRING ")"
 # elif defined(__linux) || defined(__linux__)
-#  define _ENDIAN_PLATFORM "Linux_"ARCHITECTURE" (" _ENDIAN_STRING ")"
+#  define _ENDIAN_PLATFORM "Linux_" ARCHITECTURE " (" _ENDIAN_STRING ")"
 # else
-#  define _ENDIAN_PLATFORM "Unix_"ARCHITECTURE" (" _ENDIAN_STRING ")"
+#  define _ENDIAN_PLATFORM "Unix_" ARCHITECTURE " (" _ENDIAN_STRING ")"
 # endif
 # define _MANGOSD_CONFIG  SYSCONFDIR"mangosd.conf"
 # define _REALMD_CONFIG  SYSCONFDIR"realmd.conf"
+# define _AUCTIONHOUSEBOT_CONFIG   SYSCONFDIR"ahbot.conf"
 #endif
 
-#define _FULLVERSION(REVD,REVT,REVN,REVH) _PACKAGENAME "/" _VERSION(REVD,REVT,REVN,REVH) " for " _ENDIAN_PLATFORM
+#define _FULLVERSION(REVD,REVH) _PACKAGENAME "/" _VERSION(REVD,REVH) " for " _ENDIAN_PLATFORM
 
 #define DEFAULT_PLAYER_LIMIT 100
 #define DEFAULT_WORLDSERVER_PORT 8085                       //8129
 #define DEFAULT_REALMSERVER_PORT 3724
-#define DEFAULT_SOCKET_SELECT_TIME 10000
 #endif

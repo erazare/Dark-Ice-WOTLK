@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 MaNGOS <http://getmangos.com/>
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #define _REALMLIST_H
 
 #include "Common.h"
+#include <array>
 
 struct RealmBuildInfo
 {
@@ -32,6 +33,8 @@ struct RealmBuildInfo
     int minor_version;
     int bugfix_version;
     int hotfix_version;
+    std::array<uint8, 20> WindowsHash;
+    std::array<uint8, 20> MacHash;
 };
 
 RealmBuildInfo const* FindBuildInfo(uint16 _build);
@@ -72,7 +75,7 @@ class RealmList
         uint32 size() const { return m_realms.size(); }
     private:
         void UpdateRealms(bool init);
-        void UpdateRealm( uint32 ID, const std::string& name, const std::string& address, uint32 port, uint8 icon, RealmFlags realmflags, uint8 timezone, AccountTypes allowedSecurityLevel, float popu, const char* builds);
+        void UpdateRealm(uint32 ID, const std::string& name, const std::string& address, uint32 port, uint8 icon, RealmFlags realmflags, uint8 timezone, AccountTypes allowedSecurityLevel, float popu, const std::string& builds);
     private:
         RealmMap m_realms;                                  ///< Internal map of realms
         uint32   m_UpdateInterval;

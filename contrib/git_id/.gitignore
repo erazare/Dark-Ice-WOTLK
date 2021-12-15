@@ -11,14 +11,7 @@
 #
 
 *.bsc
-*.ncb
 *.pdb
-*.suo
-*.sdf
-*.opensdf
-*.sln.cache
-*.vsp
-ipch
 Debug
 Release
-*.user
+git_id

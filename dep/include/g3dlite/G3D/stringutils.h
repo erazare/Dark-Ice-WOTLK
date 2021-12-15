@@ -1,22 +1,59 @@
 /**
  @file stringutils.h
  
- @maintainer Morgan McGuire, matrix@graphics3d.com
+ @maintainer Morgan McGuire, http://graphics.cs.williams.edu
  
  @author  2000-09-09
- @edited  2002-11-30
+ @edited  2010-03-05
  */
 
-#ifndef G3D_STRINGUTILS_H
-#define G3D_STRINGUTILS_H
+#ifndef G3D_stringutils_h
+#define G3D_stringutils_h
 
 #include "G3D/platform.h"
 #include "G3D/Array.h"
-#include <string>
+#include <cstring>
 
 namespace G3D {
 
 extern const char* NEWLINE;
+
+/** Separates a comma-separated line, properly escaping commas within
+    double quotes (") and super quotes ("""). This matches Microsoft Excel's 
+    CSV output.
+
+    \param stripQuotes If true, strips leading and trailing " and """
+
+    \sa G3D::stringSplit, G3D::TextInput, G3D::readWholeFile
+*/
+void parseCommaSeparated(const std::string s, Array<std::string>& array, bool stripQuotes = true);
+
+/** Finds the index of the first '\\' or '/' character, starting at index \a start. 
+  \sa G3D::findLastSlash, G3D::isSlash
+*/
+inline int findSlash(const std::string& f, int start = 0) {
+    int i = f.find('/', start);
+    int j = f.find('\\', start);
+    if (((i != -1) && (i < j)) || (j == -1)) {
+        return i;
+    } else {
+        return j;
+    }
+}
+
+
+/** Finds the index of the first '\\' or '/' character, starting at index \a start (if \a start is -1, starts at the end of the string).
+  \sa G3D::findSlash, G3D::isSlash
+  */
+inline int findLastSlash(const std::string& f, int start = -1) {
+    if (start == -1) {
+        start = f.length() - 1;
+    }
+
+    int i = f.rfind('/', start);
+    int j = f.rfind('\\', start);
+    return max(i, j);
+}
 
 /**
  Returns true if the test string begins with the pattern string.
@@ -91,36 +128,36 @@ std::string trimWhitespace(
 /** These standard C functions are renamed for clarity/naming
    conventions and to return bool, not int.
    */
-inline bool isWhiteSpace(const char c) {
+inline bool isWhiteSpace(const unsigned char c) {
     return isspace(c) != 0;
 }
 
 /** These standard C functions are renamed for clarity/naming
    conventions and to return bool, not int.
    */
-inline bool isNewline(const char c) {
+inline bool isNewline(const unsigned char c) {
     return (c == '\n') || (c == '\r');
 }
 
 /** These standard C functions are renamed for clarity/naming
    conventions and to return bool, not int.
    */
-inline bool isDigit(const char c) {
+inline bool isDigit(const unsigned char c) {
     return isdigit(c) != 0;
 }
 
 /** These standard C functions are renamed for clarity/naming
    conventions and to return bool, not int.
    */
-inline bool isLetter(const char c) {
+inline bool isLetter(const unsigned char c) {
     return isalpha(c) != 0;
 }
 
-inline bool isSlash(const char c) {
+inline bool isSlash(const unsigned char c) {
     return (c == '\\') || (c == '/');
 }
 
-inline bool isQuote(const char c) {
+inline bool isQuote(const unsigned char c) {
     return (c == '\'') || (c == '\"');
 }
 

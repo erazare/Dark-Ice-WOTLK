@@ -10,6 +10,6 @@
 # MaNGOS generated files
 #
 
-ACE*
-ADE*
-tbb*
+Recast*
+Detour*
+DebugUtils*

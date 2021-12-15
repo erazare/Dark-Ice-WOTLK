@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 MaNGOS <http://getmangos.com/>
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,20 +20,26 @@
 
 #include "Platform/Define.h"
 
-class MANGOS_DLL_SPEC barGoLink
+class BarGoLink
 {
-    static char const * const empty;
-    static char const * const full;
+    public:                                                 // constructors
+        explicit BarGoLink(int row_count);
+        ~BarGoLink();
 
-    int rec_no;
-    int rec_pos;
-    int num_rec;
-    int indic_len;
+    public:                                                 // modifiers
+        void step();
 
-    public:
+        static void SetOutputState(bool on);
+    private:
+        void init(int row_count);
 
-        void step( void );
-        barGoLink( int );
-        ~barGoLink();
+        static bool m_showOutput;                           // not recommended change with existed active bar
+        static char const* const empty;
+        static char const* const full;
+
+        int rec_no;
+        int rec_pos;
+        int num_rec;
+        int indic_len;
 };
 #endif

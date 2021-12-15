@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 MaNGOS <http://getmangos.com/>
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,8 +66,10 @@ class EventProcessor
 
         void Update(uint32 p_time);
         void KillAllEvents(bool force);
+        void KillEvent(BasicEvent* Event);
         void AddEvent(BasicEvent* Event, uint64 e_time, bool set_addtime = true);
-        uint64 CalculateTime(uint64 t_offset);
+        uint64 CalculateTime(uint64 t_offset) const;
+        EventList& GetEvents() { return m_events; }
 
     protected:
 

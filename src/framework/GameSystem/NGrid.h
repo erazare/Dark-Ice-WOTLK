@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 MaNGOS <http://getmangos.com/>
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,19 +26,19 @@
 #include "GameSystem/GridReference.h"
 #include "Timer.h"
 
+#include <cassert>
+
 class GridInfo
 {
     public:
 
         GridInfo()
-            : i_timer(0), i_unloadActiveLockCount(0), i_unloadExplicitLock(false),
-            i_unloadReferenceLock(false)
+            : i_timer(0), i_unloadActiveLockCount(0), i_unloadExplicitLock(false)
         {
         }
 
-        GridInfo(time_t expiry, bool unload = true )
-            : i_timer(expiry), i_unloadActiveLockCount(0), i_unloadExplicitLock(!unload),
-            i_unloadReferenceLock(false)
+        GridInfo(time_t expiry, bool unload = true)
+            : i_timer(expiry), i_unloadActiveLockCount(0), i_unloadExplicitLock(!unload)
         {
         }
 
@@ -46,11 +46,10 @@ class GridInfo
 
         bool getUnloadLock() const
         {
-            return i_unloadActiveLockCount || i_unloadExplicitLock || i_unloadReferenceLock;
+            return i_unloadActiveLockCount || i_unloadExplicitLock;
         }
 
-        void setUnloadExplicitLock( bool on ) { i_unloadExplicitLock = on; }
-        void setUnloadReferenceLock( bool on ) { i_unloadReferenceLock = on; }
+        void setUnloadExplicitLock(bool on) { i_unloadExplicitLock = on; }
         void incUnloadActiveLock() { ++i_unloadActiveLockCount; }
         void decUnloadActiveLock() { if (i_unloadActiveLockCount) --i_unloadActiveLockCount; }
 
@@ -61,9 +60,8 @@ class GridInfo
     private:
 
         TimeTracker i_timer;
-        uint16 i_unloadActiveLockCount : 16;                    // lock from active object spawn points (prevent clone loading)
-        bool i_unloadExplicitLock      : 1;                     // explicit manual lock or config setting
-        bool i_unloadReferenceLock     : 1;                     // lock from instance map copy
+        uint16 i_unloadActiveLockCount : 16;                // lock from active object spawn points (prevent clone loading)
+        bool i_unloadExplicitLock      : 1;                 // explicit manual lock or config setting
 };
 
 typedef enum
@@ -77,12 +75,12 @@ typedef enum
 
 template
 <
-uint32 N,
-class ACTIVE_OBJECT,
-class WORLD_OBJECT_TYPES,
-class GRID_OBJECT_TYPES
->
-class MANGOS_DLL_DECL NGrid
+    uint32 N,
+    class ACTIVE_OBJECT,
+    class WORLD_OBJECT_TYPES,
+    class GRID_OBJECT_TYPES
+    >
+class NGrid
 {
     public:
 
@@ -96,15 +94,15 @@ class MANGOS_DLL_DECL NGrid
 
         const GridType& operator()(uint32 x, uint32 y) const
         {
-            ASSERT(x < N);
-            ASSERT(y < N);
+            assert(x < N);
+            assert(y < N);
             return i_cells[x][y];
         }
 
         GridType& operator()(uint32 x, uint32 y)
         {
-            ASSERT(x < N);
-            ASSERT(y < N);
+            assert(x < N);
+            assert(y < N);
             return i_cells[x][y];
         }
 
@@ -127,26 +125,25 @@ class MANGOS_DLL_DECL NGrid
         const TimeTracker& getTimeTracker() const { return i_GridInfo.getTimeTracker(); }
         bool getUnloadLock() const { return i_GridInfo.getUnloadLock(); }
         void setUnloadExplicitLock(bool on) { i_GridInfo.setUnloadExplicitLock(on); }
-        void setUnloadReferenceLock(bool on) { i_GridInfo.setUnloadReferenceLock(on); }
         void incUnloadActiveLock() { i_GridInfo.incUnloadActiveLock(); }
         void decUnloadActiveLock() { i_GridInfo.decUnloadActiveLock(); }
         void ResetTimeTracker(time_t interval) { i_GridInfo.ResetTimeTracker(interval); }
         void UpdateTimeTracker(time_t diff) { i_GridInfo.UpdateTimeTracker(diff); }
 
         template<class SPECIFIC_OBJECT>
-        void AddWorldObject(const uint32 x, const uint32 y, SPECIFIC_OBJECT *obj)
+        void AddWorldObject(const uint32 x, const uint32 y, SPECIFIC_OBJECT* obj)
         {
             getGridType(x, y).AddWorldObject(obj);
         }
 
         template<class SPECIFIC_OBJECT>
-        void RemoveWorldObject(const uint32 x, const uint32 y, SPECIFIC_OBJECT *obj)
+        void RemoveWorldObject(const uint32 x, const uint32 y, SPECIFIC_OBJECT* obj)
         {
             getGridType(x, y).RemoveWorldObject(obj);
         }
 
         template<class T, class TT>
-        void Visit(TypeContainerVisitor<T, TypeMapContainer<TT> > &visitor)
+        void Visit(TypeContainerVisitor<T, TypeMapContainer<TT> >& visitor)
         {
             for (uint32 x = 0; x < N; ++x)
                 for (uint32 y = 0; y < N; ++y)
@@ -154,7 +151,7 @@ class MANGOS_DLL_DECL NGrid
         }
 
         template<class T, class TT>
-        void Visit(const uint32 &x, const uint32 &y, TypeContainerVisitor<T, TypeMapContainer<TT> > &visitor)
+        void Visit(const uint32& x, const uint32& y, TypeContainerVisitor<T, TypeMapContainer<TT> >& visitor)
         {
             getGridType(x, y).Visit(visitor);
         }
@@ -170,13 +167,13 @@ class MANGOS_DLL_DECL NGrid
         }
 
         template<class SPECIFIC_OBJECT>
-        bool AddGridObject(const uint32 x, const uint32 y, SPECIFIC_OBJECT *obj)
+        bool AddGridObject(const uint32 x, const uint32 y, SPECIFIC_OBJECT* obj)
         {
             return getGridType(x, y).AddGridObject(obj);
         }
 
         template<class SPECIFIC_OBJECT>
-        bool RemoveGridObject(const uint32 x, const uint32 y, SPECIFIC_OBJECT *obj)
+        bool RemoveGridObject(const uint32 x, const uint32 y, SPECIFIC_OBJECT* obj)
         {
             return getGridType(x, y).RemoveGridObject(obj);
         }
@@ -185,8 +182,8 @@ class MANGOS_DLL_DECL NGrid
 
         GridType& getGridType(const uint32& x, const uint32& y)
         {
-            ASSERT(x < N);
-            ASSERT(y < N);
+            assert(x < N);
+            assert(y < N);
             return i_cells[x][y];
         }
 

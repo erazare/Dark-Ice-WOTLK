@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 MaNGOS <http://getmangos.com/>
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,20 +29,21 @@
 #include "AuthSocket.h"
 #include "SystemConfig.h"
 #include "revision.h"
-#include "revision_nr.h"
 #include "revision_sql.h"
 #include "Util.h"
+#include "Network/Listener.hpp"
+
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
 
-#include <ace/Get_Opt.h>
-#include <ace/Dev_Poll_Reactor.h>
-#include <ace/TP_Reactor.h>
-#include <ace/ACE.h>
-#include <ace/Acceptor.h>
-#include <ace/SOCK_Acceptor.h>
+#include <boost/program_options.hpp>
+#include <boost/version.hpp>
 
-#ifdef WIN32
+#include <iostream>
+#include <chrono>
+#include <thread>
+
+#ifdef _WIN32
 #include "ServiceWin32.h"
 char serviceName[] = "realmd";
 char serviceLongName[] = "MaNGOS realmd service";
@@ -54,6 +55,8 @@ char serviceDescription[] = "Massive Network Game Object Server";
  *  2 - paused
  */
 int m_ServiceStatus = -1;
+#else
+#include "PosixDaemon.h"
 #endif
 
 bool StartDB();
@@ -62,102 +65,85 @@ void HookSignals();
 
 bool stopEvent = false;                                     ///< Setting it to true stops the server
 
-DatabaseType loginDatabase;                                 ///< Accessor to the realm server database
-
-/// Print out the usage string for this program on the console.
-void usage(const char *prog)
-{
-    sLog.outString("Usage: \n %s [<options>]\n"
-        "    -v, --version            print version and exist\n\r"
-        "    -c config_file           use config_file as configuration file\n\r"
-        #ifdef WIN32
-        "    Running as service functions:\n\r"
-        "    -s run                   run as service\n\r"
-        "    -s install               install service\n\r"
-        "    -s uninstall             uninstall service\n\r"
-        #endif
-        ,prog);
-}
+DatabaseType LoginDatabase;                                 ///< Accessor to the realm server database
 
 /// Launch the realm server
-extern int main(int argc, char **argv)
+int main(int argc, char* argv[])
 {
-    ///- Command line parsing
-    char const* cfg_file = _REALMD_CONFIG;
+    std::string configFile, serviceParameter;
 
-#ifdef WIN32
-    char const *options = ":c:s:";
+    boost::program_options::options_description desc("Allowed options");
+    desc.add_options()
+    ("config,c", boost::program_options::value<std::string>(&configFile)->default_value(_REALMD_CONFIG), "configuration file")
+    ("version,v", "print version and exit")
+#ifdef _WIN32
+    ("s", boost::program_options::value<std::string>(&serviceParameter), "<run, install, uninstall> service");
 #else
-    char const *options = ":c:";
+    ("s", boost::program_options::value<std::string>(&serviceParameter), "<run, stop> service");
 #endif
 
-    ACE_Get_Opt cmd_opts(argc, argv, options);
-    cmd_opts.long_option("version", 'v');
+    boost::program_options::variables_map vm;
 
-    int option;
-    while ((option = cmd_opts()) != EOF)
+    try
     {
-        switch (option)
-        {
-            case 'c':
-                cfg_file = cmd_opts.opt_arg();
-                break;
-            case 'v':
-                printf("%s\n", _FULLVERSION(REVISION_DATE,REVISION_TIME,REVISION_NR,REVISION_ID));
-                return 0;
-#ifdef WIN32
-            case 's':
-            {
-                const char *mode = cmd_opts.opt_arg();
+        boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
+        boost::program_options::notify(vm);
+    }
+    catch (boost::program_options::error const& e)
+    {
+        std::cerr << "ERROR: " << e.what() << std::endl << std::endl;
+        std::cerr << desc << std::endl;
 
-                if (!strcmp(mode, "install"))
-                {
-                    if (WinServiceInstall())
-                        sLog.outString("Installing service");
-                    return 1;
-                }
-                else if (!strcmp(mode, "uninstall"))
-                {
-                    if (WinServiceUninstall())
-                        sLog.outString("Uninstalling service");
-                    return 1;
-                }
-                else if (!strcmp(mode, "run"))
-                    WinServiceRun();
-                else
-                {
-                    sLog.outError("Runtime-Error: -%c unsupported argument %s", cmd_opts.opt_opt(), mode);
-                    usage(argv[0]);
-                    Log::WaitBeforeContinueIfNeed();
-                    return 1;
-                }
-                break;
-            }
-#endif
-            case ':':
-                sLog.outError("Runtime-Error: -%c option requires an input argument", cmd_opts.opt_opt());
-                usage(argv[0]);
-                Log::WaitBeforeContinueIfNeed();
-                return 1;
-            default:
-                sLog.outError("Runtime-Error: bad format of commandline arguments");
-                usage(argv[0]);
-                Log::WaitBeforeContinueIfNeed();
-                return 1;
-        }
+        return 1;
     }
 
-    if (!sConfig.SetSource(cfg_file))
+#ifdef _WIN32                                                // windows service command need execute before config read
+    if (vm.count("s"))
     {
-        sLog.outError("Could not find configuration file %s.", cfg_file);
+        switch (::tolower(serviceParameter[0]))
+        {
+            case 'i':
+                if (WinServiceInstall())
+                    sLog.outString("Installing service");
+                return 1;
+            case 'u':
+                if (WinServiceUninstall())
+                    sLog.outString("Uninstalling service");
+                return 1;
+            case 'r':
+                WinServiceRun();
+                break;
+        }
+    }
+#endif
+
+    if (!sConfig.SetSource(configFile))
+    {
+        sLog.outError("Could not find configuration file %s.", configFile.c_str());
         Log::WaitBeforeContinueIfNeed();
         return 1;
     }
+
+#ifndef _WIN32                                               // posix daemon commands need apply after config read
+    if (vm.count("s"))
+    {
+        switch (::tolower(serviceParameter[0]))
+        {
+            case 'r':
+                startDaemon();
+                break;
+            case 's':
+                stopDaemon();
+                break;
+        }
+    }
+#endif
+
     sLog.Initialize();
 
-    sLog.outString( "%s [realm-daemon]", _FULLVERSION(REVISION_DATE,REVISION_TIME,REVISION_NR,REVISION_ID) );
-    sLog.outString( "<Ctrl-C> to stop.\n" );
-    sLog.outString("Using configuration file %s.", cfg_file);
+    sLog.outString("%s [realm-daemon]", _FULLVERSION(REVISION_DATE, REVISION_ID));
+    sLog.outString("<Ctrl-C> to stop.\n");
+    sLog.outString("Using configuration file %s.", configFile.c_str());
 
     ///- Check the version of the configuration file
     uint32 confVersion = sConfig.GetIntDefault("ConfVersion", 0);
@@ -172,39 +158,29 @@ extern int main(int argc, char **argv)
     }
 
     DETAIL_LOG("%s (Library: %s)", OPENSSL_VERSION_TEXT, SSLeay_version(SSLEAY_VERSION));
-    if (SSLeay() < 0x009080bfL )
+    if (SSLeay() < 0x009080bfL)
     {
         DETAIL_LOG("WARNING: Outdated version of OpenSSL lib. Logins to server may not work!");
         DETAIL_LOG("WARNING: Minimal required version [OpenSSL 0.9.8k]");
     }
 
-    DETAIL_LOG("Using ACE: %s", ACE_VERSION);
-
-#if defined (ACE_HAS_EVENT_POLL) || defined (ACE_HAS_DEV_POLL)
-    ACE_Reactor::instance(new ACE_Reactor(new ACE_Dev_Poll_Reactor(ACE::max_handles(), 1), 1), true);
-#else
-    ACE_Reactor::instance(new ACE_Reactor(new ACE_TP_Reactor(), true), true);
-#endif
-
-    sLog.outBasic("Max allowed open files is %d", ACE::max_handles());
-
     /// realmd PID file creation
-    std::string pidfile = sConfig.GetStringDefault("PidFile", "");
-    if(!pidfile.empty())
+    std::string pidfile = sConfig.GetStringDefault("PidFile");
+    if (!pidfile.empty())
     {
         uint32 pid = CreatePIDFile(pidfile);
-        if( !pid )
+        if (!pid)
         {
-            sLog.outError( "Cannot create PID file %s.\n", pidfile.c_str() );
+            sLog.outError("Cannot create PID file %s.\n", pidfile.c_str());
             Log::WaitBeforeContinueIfNeed();
             return 1;
         }
 
-        sLog.outString( "Daemon PID: %u\n", pid );
+        sLog.outString("Daemon PID: %u\n", pid);
     }
 
     ///- Initialize the database connection
-    if(!StartDB())
+    if (!StartDB())
     {
         Log::WaitBeforeContinueIfNeed();
         return 1;
@@ -221,49 +197,39 @@ extern int main(int argc, char **argv)
 
     // cleanup query
     // set expired bans to inactive
-    loginDatabase.Execute("UPDATE account_banned SET active = 0 WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");
-    loginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");
+    LoginDatabase.BeginTransaction();
+    LoginDatabase.Execute("UPDATE account_banned SET active = 0 WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");
+    LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");
+    LoginDatabase.CommitTransaction();
 
-    ///- Launch the listening network socket
-    ACE_Acceptor<AuthSocket, ACE_SOCK_Acceptor> acceptor;
-
-    uint16 rmport = sConfig.GetIntDefault("RealmServerPort", DEFAULT_REALMSERVER_PORT);
-    std::string bind_ip = sConfig.GetStringDefault("BindIP", "0.0.0.0");
-
-    ACE_INET_Addr bind_addr(rmport, bind_ip.c_str());
-
-    if(acceptor.open(bind_addr, ACE_Reactor::instance(), ACE_NONBLOCK) == -1)
-    {
-        sLog.outError("MaNGOS realmd can not bind to %s:%d", bind_ip.c_str(), rmport);
-        Log::WaitBeforeContinueIfNeed();
-        return 1;
-    }
+    // FIXME - more intelligent selection of thread count is needed here.  config option?
+    MaNGOS::Listener<AuthSocket> listener(sConfig.GetStringDefault("BindIP", "0.0.0.0"), sConfig.GetIntDefault("RealmServerPort", DEFAULT_REALMSERVER_PORT), 1);
 
     ///- Catch termination signals
     HookSignals();
 
     ///- Handle affinity for multiple processors and process priority on Windows
-    #ifdef WIN32
+#ifdef _WIN32
     {
         HANDLE hProcess = GetCurrentProcess();
 
         uint32 Aff = sConfig.GetIntDefault("UseProcessors", 0);
-        if(Aff > 0)
+        if (Aff > 0)
         {
             ULONG_PTR appAff;
             ULONG_PTR sysAff;
 
-            if(GetProcessAffinityMask(hProcess,&appAff,&sysAff))
+            if (GetProcessAffinityMask(hProcess, &appAff, &sysAff))
             {
                 ULONG_PTR curAff = Aff & appAff;            // remove non accessible processors
 
-                if(!curAff )
+                if (!curAff)
                 {
-                    sLog.outError("Processors marked in UseProcessors bitmask (hex) %x not accessible for realmd. Accessible processors bitmask (hex): %x",Aff,appAff);
+                    sLog.outError("Processors marked in UseProcessors bitmask (hex) %x not accessible for realmd. Accessible processors bitmask (hex): %x", Aff, appAff);
                 }
                 else
                 {
-                    if(SetProcessAffinityMask(hProcess,curAff))
+                    if (SetProcessAffinityMask(hProcess, curAff))
                         sLog.outString("Using processors (bitmask, hex): %x", curAff);
                     else
                         sLog.outError("Can't set used processors (hex): %x", curAff);
@@ -274,49 +240,50 @@ extern int main(int argc, char **argv)
 
         bool Prio = sConfig.GetBoolDefault("ProcessPriority", false);
 
-        if(Prio)
+        if (Prio)
         {
-            if(SetPriorityClass(hProcess,HIGH_PRIORITY_CLASS))
+            if (SetPriorityClass(hProcess, HIGH_PRIORITY_CLASS))
                 sLog.outString("realmd process priority class set to HIGH");
             else
-                sLog.outError("ERROR: Can't set realmd process priority class.");
+                sLog.outError("Can't set realmd process priority class.");
             sLog.outString();
         }
     }
-    #endif
+#endif
+
+    // server has started up successfully => enable async DB requests
+    LoginDatabase.AllowAsyncTransactions();
 
     // maximum counter for next ping
-    uint32 numLoops = (sConfig.GetIntDefault( "MaxPingTime", 30 ) * (MINUTE * 1000000 / 100000));
+    auto const numLoops = sConfig.GetIntDefault("MaxPingTime", 30) * MINUTE * 10;
     uint32 loopCounter = 0;
 
+#ifndef _WIN32
+    detachDaemon();
+#endif
     ///- Wait for termination signal
     while (!stopEvent)
     {
-        // dont move this outside the loop, the reactor will modify it
-        ACE_Time_Value interval(0, 100000);
-
-        if (ACE_Reactor::instance()->run_reactor_event_loop(interval) == -1)
-            break;
-
-        if( (++loopCounter) == numLoops )
+        if ((++loopCounter) == numLoops)
         {
             loopCounter = 0;
             DETAIL_LOG("Ping MySQL to keep connection alive");
-            delete loginDatabase.Query("SELECT 1 FROM realmlist LIMIT 1");
+            LoginDatabase.Ping();
         }
-#ifdef WIN32
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+#ifdef _WIN32
         if (m_ServiceStatus == 0) stopEvent = true;
         while (m_ServiceStatus == 2) Sleep(1000);
 #endif
     }
 
     ///- Wait for the delay thread to exit
-    loginDatabase.HaltDelayThread();
+    LoginDatabase.HaltDelayThread();
 
     ///- Remove signal handling before leaving
     UnhookSignals();
 
-    sLog.outString( "Halting process..." );
+    sLog.outString("Halting process...");
     return 0;
 }
 
@@ -330,11 +297,11 @@ void OnSignal(int s)
         case SIGTERM:
             stopEvent = true;
             break;
-        #ifdef _WIN32
+#ifdef _WIN32
         case SIGBREAK:
             stopEvent = true;
             break;
-        #endif
+#endif
     }
 
     signal(s, OnSignal);
@@ -343,24 +310,25 @@ void OnSignal(int s)
 /// Initialize connection to the database
 bool StartDB()
 {
-    std::string dbstring = sConfig.GetStringDefault("LoginDatabaseInfo", "");
-    if(dbstring.empty())
+    std::string dbstring = sConfig.GetStringDefault("LoginDatabaseInfo");
+    if (dbstring.empty())
     {
         sLog.outError("Database not specified");
         return false;
     }
 
-    sLog.outString("Database: %s", dbstring.c_str() );
-    if(!loginDatabase.Initialize(dbstring.c_str()))
+    sLog.outString("Login Database total connections: %i", 1 + 1);
+
+    if (!LoginDatabase.Initialize(dbstring.c_str()))
     {
         sLog.outError("Cannot connect to database");
         return false;
     }
 
-    if(!loginDatabase.CheckRequiredField("realmd_db_version",REVISION_DB_REALMD))
+    if (!LoginDatabase.CheckRequiredField("realmd_db_version", REVISION_DB_REALMD))
     {
         ///- Wait for already started DB delay threads to end
-        loginDatabase.HaltDelayThread();
+        LoginDatabase.HaltDelayThread();
         return false;
     }
 
@@ -372,19 +340,19 @@ void HookSignals()
 {
     signal(SIGINT, OnSignal);
     signal(SIGTERM, OnSignal);
-    #ifdef _WIN32
+#ifdef _WIN32
     signal(SIGBREAK, OnSignal);
-    #endif
+#endif
 }
 
 /// Unhook the signals before leaving
 void UnhookSignals()
 {
-    signal(SIGINT, 0);
-    signal(SIGTERM, 0);
-    #ifdef _WIN32
-    signal(SIGBREAK, 0);
-    #endif
+    signal(SIGINT, nullptr);
+    signal(SIGTERM, nullptr);
+#ifdef _WIN32
+    signal(SIGBREAK, nullptr);
+#endif
 }
 
 /// @}

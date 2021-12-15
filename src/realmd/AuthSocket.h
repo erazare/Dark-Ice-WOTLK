@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 MaNGOS <http://getmangos.com/>
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,28 +28,32 @@
 #include "Auth/Sha1.h"
 #include "ByteBuffer.h"
 
-#include "BufferedSocket.h"
+#include "Network/Socket.hpp"
 
-/// Handle login commands
-class AuthSocket: public BufferedSocket
+#include <boost/asio.hpp>
+
+#include <functional>
+
+#define HMAC_RES_SIZE 20
+
+class AuthSocket : public MaNGOS::Socket
 {
     public:
         const static int s_BYTE_SIZE = 32;
 
-        AuthSocket();
-        ~AuthSocket();
+        AuthSocket(boost::asio::io_service& service, std::function<void (Socket*)> closeHandler);
 
-        void OnAccept();
-        void OnRead();
         void SendProof(Sha1Hash sha);
-        void LoadRealmlist(ByteBuffer &pkt, uint32 acctid);
+        void LoadRealmlist(ByteBuffer& pkt, uint32 acctid);
+        int32 generateToken(char const* b32key);
 
+        bool VerifyVersion(uint8 const* a, int32 aLength, uint8 const* versionProof, bool isReconnect);
         bool _HandleLogonChallenge();
         bool _HandleLogonProof();
         bool _HandleReconnectChallenge();
         bool _HandleReconnectProof();
         bool _HandleRealmList();
-        //data transfer handle for patch
+        // data transfer handle for patch
 
         bool _HandleXferResume();
         bool _HandleXferCancel();
@@ -58,16 +62,27 @@ class AuthSocket: public BufferedSocket
         void _SetVSFields(const std::string& rI);
 
     private:
+        enum eStatus
+        {
+            STATUS_CHALLENGE,
+            STATUS_LOGON_PROOF,
+            STATUS_RECON_PROOF,
+            STATUS_PATCH,      // unused in CMaNGOS
+            STATUS_AUTHED,
+            STATUS_CLOSED
+        };
 
         BigNumber N, s, g, v;
         BigNumber b, B;
         BigNumber K;
         BigNumber _reconnectProof;
 
-        bool _authed;
+        eStatus _status;
 
         std::string _login;
         std::string _safelogin;
+        std::string _token;
+        std::string m_os;
 
         // Since GetLocaleByName() is _NOT_ bijective, we have to store the locale as a string. Otherwise we can't differ
         // between enUS and enGB, which is important for the patch system
@@ -75,9 +90,7 @@ class AuthSocket: public BufferedSocket
         uint16 _build;
         AccountTypes _accountSecurityLevel;
 
-        ACE_HANDLE patch_;
-
-        void InitPatch();
+        virtual bool ProcessIncomingData() override;
 };
 #endif
 /// @}

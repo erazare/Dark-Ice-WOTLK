@@ -19,17 +19,20 @@ ConfVersion=2010062001
 #    LogsDir
 #         Logs directory setting.
 #         Important: Logs dir must exists, or all logs be disable
-#         Default: "" - no log directory prefix, if used log names isn't absolute path then logs will be
-#                       stored in current directory for run program.
+#         Default: "" - no log directory prefix. if used log names aren't absolute paths
+#                       then logs will be stored in the current directory of the running program.
 #
 #    MaxPingTime
 #         Settings for maximum database-ping interval (minutes between pings)
 #
 #    RealmServerPort
-#         Default RealmServerPort
+#         Port on which the server will listen
 #
 #    BindIP
-#         Bind Realm Server to IP/hostname
+#         Bind Realm Server to specific IP address
+#         This option is useful for running multiple worldd/realmd instances
+#         on different IP addresses using default ports.
+#         DO NOT CHANGE THIS UNLESS YOU _REALLY_ KNOW WHAT YOU'RE DOING
 #
 #    PidFile
 #        Realmd daemon PID file
@@ -89,6 +92,11 @@ ConfVersion=2010062001
 #        Default: 20
 #                 0  (Disabled)
 #
+#    StrictVersionCheck
+#        Description: Prevent modified clients from connnecting
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+#
 #    WrongPass.MaxCount
 #        Number of login attemps with wrong password before the account or IP is banned
 #        Default: 0  (Never ban)
@@ -104,7 +112,7 @@ ConfVersion=2010062001
 #
 ###################################################################################################################
 
-LoginDatabaseInfo = "127.0.0.1;3306;root;mangos;realmd"
+LoginDatabaseInfo = "127.0.0.1;3306;mangos;mangos;wotlkrealmd"
 LogsDir = ""
 MaxPingTime = 30
 RealmServerPort = 3724
@@ -120,6 +128,7 @@ UseProcessors = 0
 ProcessPriority = 1
 WaitAtStartupError = 0
 RealmsStateUpdateDelay = 20
+StrictVersionCheck = 0
 WrongPass.MaxCount = 0
 WrongPass.BanTime = 600
 WrongPass.BanType = 0

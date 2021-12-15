@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 MaNGOS <http://getmangos.com/>
+ * This file is part of the CMaNGOS Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,17 +30,21 @@ class BigNumber;
 class HMACSHA1
 {
     public:
-        HMACSHA1(uint32 len, uint8 *seed);
+        HMACSHA1(uint32 len, uint8* seed);
         ~HMACSHA1();
-        void UpdateBigNumber(BigNumber *bn);
-        void UpdateData(const uint8 *data, int length);
-        void UpdateData(const std::string &str);
+        void UpdateBigNumber(BigNumber* bn);
+        void UpdateData(const uint8* data, int length);
+        void UpdateData(const std::string& str);
         void Finalize();
-        uint8 *ComputeHash(BigNumber *bn);
-        uint8 *GetDigest() { return (uint8*)m_digest; }
-        int GetLength() { return SHA_DIGEST_LENGTH; }
+        uint8* ComputeHash(BigNumber* bn);
+        uint8* GetDigest() { return (uint8*)m_digest; }
+        static int GetLength() { return SHA_DIGEST_LENGTH; }
     private:
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+        HMAC_CTX* m_ctx;
+#else
         HMAC_CTX m_ctx;
+#endif
         uint8 m_digest[SHA_DIGEST_LENGTH];
 };
 #endif
